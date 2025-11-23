@@ -128,16 +128,33 @@
             background: #3a5ca0;
         }
         
+        .btn-update {
+            background: #2ecc71;
+        }
+        
+        .btn-update:hover {
+            background: #27ae60;
+        }
+        
+        .btn-cancel {
+            background: #e67e22;
+            margin-top: 10px;
+        }
+        
+        .btn-cancel:hover {
+            background: #d35400;
+        }
+        
         .transaction-list {
             max-height: 400px;
             overflow-y: auto;
-            margin-bottom: 30px;
+            margin-bottom: 20px;
             border: 1px solid #eee;
             border-radius: 8px;
         }
         
         .transaction-item {
-            padding: 15px;
+            padding: 10px;
             border-bottom: 1px solid #eee;
             display: flex;
             justify-content: space-between;
@@ -160,21 +177,43 @@
         .transaction-amount.given {
             color: #e74c3c;
             font-weight: 600;
+            padding: 8px 12px;
         }
         
         .transaction-amount.received {
             color: #2ecc71;
             font-weight: 600;
+            padding: 8px 12px;
+        }
+        
+        .transaction-actions {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .edit-btn, .delete-btn {
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+        
+        .edit-btn {
+            background: #3498db;
+        }
+        
+        .edit-btn:hover {
+            background: #2980b9;
         }
         
         .delete-btn {
             background: #e74c3c;
-            color: white;
-            border: none;
-            padding: 5px 10px;
-            border-radius: 5px;
-            cursor: pointer;
-            margin-left: 10px;
+        }
+        
+        .delete-btn:hover {
+            background: #c0392b;
         }
         
         .calculation-box {
@@ -243,8 +282,8 @@
                 </div>
                 
                 <div class="form-group">
-                    <label for="description">Description</label>
-                    <textarea id="description" rows="2" placeholder="Enter transaction details"></textarea>
+                    <label for="description">Description (Optional)</label>
+                    <textarea id="description" rows="2" placeholder="Enter transaction details (optional)"></textarea>
                 </div>
                 
                 <div class="form-group">
@@ -267,6 +306,8 @@
                 </div>
                 
                 <button id="addTransaction" class="btn">Add Transaction</button>
+                <button id="updateTransaction" class="btn btn-update" style="display: none;">Update Transaction</button>
+                <button id="cancelEdit" class="btn btn-cancel" style="display: none;">Cancel Edit</button>
             </div>
             
             <div class="output-section">
@@ -297,6 +338,7 @@
             
             // Load transactions from localStorage
             let transactions = JSON.parse(localStorage.getItem('transactions')) || [];
+            let editingTransactionId = null;
             
             // Display transactions
             updateTransactionList();
@@ -307,6 +349,16 @@
                 addTransaction();
             });
             
+            // Update transaction event
+            document.getElementById('updateTransaction').addEventListener('click', function() {
+                updateTransaction();
+            });
+            
+            // Cancel edit event
+            document.getElementById('cancelEdit').addEventListener('click', function() {
+                cancelEdit();
+            });
+            
             function addTransaction() {
                 const personName = document.getElementById('personName').value.trim();
                 const date = document.getElementById('transactionDate').value;
@@ -314,8 +366,8 @@
                 const amount = parseFloat(document.getElementById('amount').value);
                 const type = document.querySelector('input[name="type"]:checked').value;
                 
-                if (!personName || !date || !description || isNaN(amount) || amount <= 0) {
-                    alert('Please fill all fields with valid values.');
+                if (!personName || !date || isNaN(amount) || amount <= 0) {
+                    alert('Please fill all required fields with valid values.');
                     return;
                 }
                 
@@ -334,17 +386,100 @@
                 updateCalculation();
                 
                 // Reset form
+                resetForm();
+            }
+            
+            function editTransaction(id) {
+                const transaction = transactions.find(t => t.id === id);
+                if (!transaction) return;
+                
+                // Fill form with transaction data
+                document.getElementById('personName').value = transaction.personName;
+                document.getElementById('transactionDate').value = transaction.date;
+                document.getElementById('description').value = transaction.description;
+                document.getElementById('amount').value = transaction.amount;
+                
+                if (transaction.type === 'given') {
+                    document.getElementById('given').checked = true;
+                } else {
+                    document.getElementById('received').checked = true;
+                }
+                
+                // Set editing mode
+                editingTransactionId = id;
+                document.getElementById('addTransaction').style.display = 'none';
+                document.getElementById('updateTransaction').style.display = 'block';
+                document.getElementById('cancelEdit').style.display = 'block';
+                
+                // Scroll to form
+                document.querySelector('.input-section').scrollIntoView({ behavior: 'smooth' });
+            }
+            
+            function updateTransaction() {
+                if (!editingTransactionId) return;
+                
+                const personName = document.getElementById('personName').value.trim();
+                const date = document.getElementById('transactionDate').value;
+                const description = document.getElementById('description').value.trim();
+                const amount = parseFloat(document.getElementById('amount').value);
+                const type = document.querySelector('input[name="type"]:checked').value;
+                
+                if (!personName || !date || isNaN(amount) || amount <= 0) {
+                    alert('Please fill all required fields with valid values.');
+                    return;
+                }
+                
+                // Find and update transaction
+                const transactionIndex = transactions.findIndex(t => t.id === editingTransactionId);
+                if (transactionIndex !== -1) {
+                    transactions[transactionIndex] = {
+                        id: editingTransactionId,
+                        personName,
+                        date,
+                        description,
+                        amount,
+                        type
+                    };
+                    
+                    saveTransactions();
+                    updateTransactionList();
+                    updateCalculation();
+                }
+                
+                // Reset form and exit edit mode
+                resetForm();
+                cancelEdit();
+            }
+            
+            function cancelEdit() {
+                editingTransactionId = null;
+                document.getElementById('addTransaction').style.display = 'block';
+                document.getElementById('updateTransaction').style.display = 'none';
+                document.getElementById('cancelEdit').style.display = 'none';
+                resetForm();
+            }
+            
+            function resetForm() {
                 document.getElementById('personName').value = '';
+                document.getElementById('transactionDate').value = today;
                 document.getElementById('description').value = '';
                 document.getElementById('amount').value = '';
+                document.getElementById('given').checked = true;
                 document.getElementById('personName').focus();
             }
             
             function deleteTransaction(id) {
-                transactions = transactions.filter(transaction => transaction.id !== id);
-                saveTransactions();
-                updateTransactionList();
-                updateCalculation();
+                if (confirm('Are you sure you want to delete this transaction?')) {
+                    transactions = transactions.filter(transaction => transaction.id !== id);
+                    saveTransactions();
+                    updateTransactionList();
+                    updateCalculation();
+                    
+                    // If we're editing this transaction, cancel edit mode
+                    if (editingTransactionId === id) {
+                        cancelEdit();
+                    }
+                }
             }
             
             function saveTransactions() {
@@ -377,13 +512,16 @@
                     transactionItem.innerHTML = `
                         <div class="transaction-details">
                             <div class="transaction-person">${transaction.personName}</div>
-                            <div>${transaction.description}</div>
+                            <div>${transaction.description || 'No description'}</div>
                             <div style="font-size: 0.9rem; color: #666;">${formattedDate}</div>
                         </div>
                         <div class="transaction-amount ${transaction.type}">
                             ${transaction.type === 'given' ? '-' : '+'}₹${transaction.amount.toLocaleString('en-IN')}
                         </div>
-                        <button class="delete-btn" onclick="deleteTransaction(${transaction.id})">Delete</button>
+                        <div class="transaction-actions">
+                            <button class="edit-btn" onclick="editTransaction(${transaction.id})">Edit</button>
+                            <button class="delete-btn" onclick="deleteTransaction(${transaction.id})">Delete</button>
+                        </div>
                     `;
                     
                     transactionList.appendChild(transactionItem);
@@ -440,7 +578,8 @@
                 calculationBox.innerHTML = calculationHTML;
             }
             
-            // Make deleteTransaction available globally for onclick
+            // Make functions available globally for onclick
+            window.editTransaction = editTransaction;
             window.deleteTransaction = deleteTransaction;
         });
     </script>
